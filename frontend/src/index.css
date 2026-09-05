@@ -1,0 +1,105 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   OrbitalX Global Styles
+   ============================================ */
+
+/* Base styles */
+body {
+  @apply bg-orbital-bg text-orbital-text font-sans antialiased;
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-orbital-bg;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-orbital-border rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-orbital-muted;
+}
+
+/* ============================================
+   Reusable Component Classes
+   ============================================ */
+
+@layer components {
+  /* Glassmorphism card */
+  .card {
+    @apply bg-orbital-card border border-orbital-border rounded-lg p-4;
+  }
+
+  .card-glow {
+    @apply card;
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.05),
+      inset 0 1px 0 rgba(6, 182, 212, 0.1);
+  }
+
+  /* Status dot */
+  .status-dot {
+    @apply inline-block w-2 h-2 rounded-full;
+  }
+
+  .status-dot-success {
+    @apply status-dot bg-orbital-success;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+  }
+
+  .status-dot-warning {
+    @apply status-dot bg-orbital-warning;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+  }
+
+  .status-dot-danger {
+    @apply status-dot bg-orbital-danger;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+  }
+
+  .status-dot-muted {
+    @apply status-dot bg-orbital-muted;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-orbital-primary text-orbital-bg font-semibold px-4 py-2 rounded-md
+           hover:bg-orbital-accent transition-colors duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-outline {
+    @apply border border-orbital-border text-orbital-text px-4 py-2 rounded-md
+           hover:border-orbital-primary hover:text-orbital-primary transition-colors duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply bg-orbital-danger text-white font-semibold px-4 py-2 rounded-md
+           hover:bg-red-600 transition-colors duration-200;
+  }
+
+  /* Input fields */
+  .input {
+    @apply bg-orbital-elevated border border-orbital-border rounded-md px-3 py-2
+           text-orbital-text placeholder:text-orbital-muted
+           focus:outline-none focus:border-orbital-primary focus:ring-1 focus:ring-orbital-primary
+           transition-colors duration-200 w-full;
+  }
+
+  /* Monospace label (used in designs for KPI labels) */
+  .label-mono {
+    @apply text-xs font-mono uppercase tracking-wider text-orbital-muted;
+  }
+}
