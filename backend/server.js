@@ -27,6 +27,10 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// --------------- API Routes ---------------
+app.use("/api/auth", require("./src/routes/auth"));
+app.use("/api/users", require("./src/routes/users"));
+
 // --------------- Error Handler ---------------
 app.use(errorHandler);
 

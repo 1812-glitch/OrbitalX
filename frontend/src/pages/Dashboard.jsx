@@ -1,0 +1,364 @@
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  Satellite,
+  Globe,
+  Radio,
+  AlertTriangle,
+  Activity,
+  Thermometer,
+  Gauge,
+  Mountain,
+  Battery,
+  Signal,
+} from "lucide-react";
+import api from "../lib/api";
+
+const fadeIn = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.4 },
+};
+
+function KPICard({ icon: Icon, label, value, sub, color = "primary" }) {
+  const colorMap = {
+    primary: "text-orbital-primary border-orbital-primary/30",
+    success: "text-orbital-success border-orbital-success/30",
+    warning: "text-orbital-warning border-orbital-warning/30",
+    danger: "text-orbital-danger border-orbital-danger/30",
+  };
+
+  return (
+    <motion.div
+      className={`card border-l-2 ${colorMap[color]} hover:bg-orbital-elevated/50 transition-colors`}
+      {...fadeIn}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <span className="label-mono">{label}</span>
+        <Icon className={`w-4 h-4 ${colorMap[color].split(" ")[0]}`} />
+      </div>
+      <p className="text-3xl font-bold font-mono">{value}</p>
+      {sub && <p className={`text-xs mt-1 ${colorMap[color].split(" ")[0]}`}>{sub}</p>}
+    </motion.div>
+  );
+}
+
+function TelemetryFeed() {
+  const [logs, setLogs] = useState([
+    { time: "09:40:12", tag: "SYS", text: "Nominal operation on GS-ALPHA link.", type: "info" },
+    { time: "09:39:55", tag: "SAT-003", text: "Minor packet loss detected. Retrying...", type: "warn" },
+    { time: "09:38:22", tag: "CMD", text: "Orbital adjustment confirmed for SAT-001.", type: "info" },
+    { time: "09:35:10", tag: "GND-2", text: "Handshake complete with Ground Station BETA.", type: "info" },
+    { time: "09:30:00", tag: "SYS", text: "Hourly telemetry dump initiated.", type: "info" },
+    { time: "09:28:45", tag: "SAT-003", text: "Thruster response timeout.", type: "error" },
+    { time: "09:25:12", tag: "SYS", text: "Nominal operation on GS-ALPHA link.", type: "info" },
+    { time: "09:22:30", tag: "SAT-01", text: "Solar array position updated.", type: "info" },
+    { time: "09:20:15", tag: "SAT-04", text: "Telemetry packet recv 256b", type: "info" },
+    { time: "09:18:42", tag: "SAT-05", text: "Comm burst sent.", type: "info" },
+  ]);
+
+  const tagColor = (type) => {
+    if (type === "warn") return "text-orbital-warning";
+    if (type === "error") return "text-orbital-danger";
+    return "text-orbital-primary";
+  };
+
+  return (
+    <div className="card h-full">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="label-mono">Real-Time Telemetry</h3>
+        <span className="status-dot-success" />
+      </div>
+      <div className="space-y-2 max-h-64 overflow-y-auto font-mono text-xs">
+        {logs.map((log, i) => (
+          <div key={i} className="flex gap-2">
+            <span className="text-orbital-muted shrink-0">[{log.time}]</span>
+            <span className={`shrink-0 ${tagColor(log.type)}`}>[{log.tag}]</span>
+            <span className={log.type === "error" ? "text-orbital-danger" : log.type === "warn" ? "text-orbital-warning" : "text-orbital-text-dim"}>
+              {log.text}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AlertCard({ severity, satellite, message }) {
+  const styles = {
+    critical: "border-orbital-danger bg-orbital-danger/5",
+    warning: "border-orbital-warning bg-orbital-warning/5",
+  };
+  const colors = {
+    critical: "text-orbital-danger",
+    warning: "text-orbital-warning",
+  };
+
+  return (
+    <div className={`border rounded-md p-3 ${styles[severity]}`}>
+      <div className="flex items-center gap-2 mb-1">
+        <AlertTriangle className={`w-3.5 h-3.5 ${colors[severity]}`} />
+        <span className={`text-xs font-mono uppercase font-bold ${colors[severity]}`}>
+          {severity} — {satellite}
+        </span>
+      </div>
+      <p className="text-xs text-orbital-text-dim">{message}</p>
+    </div>
+  );
+}
+
+function HealthDonut() {
+  // SVG donut chart for satellite health
+  const healthy = 80;
+  const warning = 15;
+  const critical = 5;
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+
+  const healthyDash = (healthy / 100) * circumference;
+  const warningDash = (warning / 100) * circumference;
+  const criticalDash = (critical / 100) * circumference;
+
+  return (
+    <div className="card">
+      <h3 className="label-mono mb-4">Satellite Health Distribution</h3>
+      <div className="flex items-center justify-center">
+        <div className="relative">
+          <svg width="120" height="120" className="-rotate-90">
+            {/* Background circle */}
+            <circle cx="60" cy="60" r={radius} fill="none" stroke="#1e293b" strokeWidth="12" />
+            {/* Healthy */}
+            <circle
+              cx="60" cy="60" r={radius} fill="none"
+              stroke="#10b981" strokeWidth="12"
+              strokeDasharray={`${healthyDash} ${circumference}`}
+              strokeDashoffset="0"
+              strokeLinecap="round"
+            />
+            {/* Warning */}
+            <circle
+              cx="60" cy="60" r={radius} fill="none"
+              stroke="#f59e0b" strokeWidth="12"
+              strokeDasharray={`${warningDash} ${circumference}`}
+              strokeDashoffset={`${-healthyDash}`}
+              strokeLinecap="round"
+            />
+            {/* Critical */}
+            <circle
+              cx="60" cy="60" r={radius} fill="none"
+              stroke="#ef4444" strokeWidth="12"
+              strokeDasharray={`${criticalDash} ${circumference}`}
+              strokeDashoffset={`${-(healthyDash + warningDash)}`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-xl font-bold font-mono text-orbital-success">100%</span>
+            <span className="text-[10px] text-orbital-muted font-mono">NOMINAL</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-center gap-4 mt-3 text-xs">
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orbital-success" />Healthy</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orbital-warning" />Warning</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orbital-danger" />Critical</span>
+      </div>
+    </div>
+  );
+}
+
+function CommBursts() {
+  const bars = [3, 5, 4, 6, 2, 7, 5, 8, 6, 9, 7, 10];
+  const maxBar = Math.max(...bars);
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="label-mono">Active Communication Bursts</h3>
+        <span className="text-xs text-orbital-muted font-mono">Last 60 mins</span>
+      </div>
+      <div className="flex items-end gap-1.5 h-28">
+        {bars.map((val, i) => (
+          <div
+            key={i}
+            className="flex-1 rounded-t transition-all duration-500"
+            style={{
+              height: `${(val / maxBar) * 100}%`,
+              background: i >= bars.length - 3
+                ? "linear-gradient(to top, #06b6d4, #22d3ee)"
+                : "#1e3a5f",
+            }}
+          />
+        ))}
+      </div>
+      <div className="flex justify-between mt-2 text-[10px] text-orbital-muted font-mono">
+        <span>-60m</span>
+        <span>-30m</span>
+        <span>Now</span>
+      </div>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const [stats, setStats] = useState({
+    activeSatellites: 5,
+    coverage: "94.2",
+    groundLinks: "4/4",
+    criticalAlerts: 0,
+  });
+  const [alerts, setAlerts] = useState([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [satRes, alertRes] = await Promise.all([
+          api.get("/satellites").catch(() => null),
+          api.get("/alerts").catch(() => null),
+        ]);
+
+        if (satRes?.data?.data) {
+          const sats = satRes.data.data.data || satRes.data.data;
+          const active = Array.isArray(sats) ? sats.filter(s => s.status === "active").length : stats.activeSatellites;
+          setStats(prev => ({ ...prev, activeSatellites: active }));
+        }
+
+        if (alertRes?.data?.data) {
+          const alertData = alertRes.data.data.data || alertRes.data.data;
+          if (Array.isArray(alertData)) {
+            setAlerts(alertData.slice(0, 3));
+            const critical = alertData.filter(a => a.severity === "critical" && !a.resolved).length;
+            setStats(prev => ({ ...prev, criticalAlerts: critical }));
+          }
+        }
+      } catch {
+        // Use default stats
+      }
+    };
+    loadData();
+  }, []);
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold">System Overview</h1>
+        <p className="text-orbital-muted text-sm mt-1">
+          Real-time status of LEO satellite constellation and ground station links.
+        </p>
+      </div>
+
+      {/* KPI Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard
+          icon={Satellite}
+          label="Active Satellites"
+          value={stats.activeSatellites}
+          sub="↗ 100% Operational"
+          color="primary"
+        />
+        <KPICard
+          icon={Globe}
+          label="Global Coverage"
+          value={`${stats.coverage}%`}
+          sub="Target: 95.0%"
+          color="success"
+        />
+        <KPICard
+          icon={Radio}
+          label="Ground Station Links"
+          value={stats.groundLinks}
+          sub="● All Links Active"
+          color="success"
+        />
+        <KPICard
+          icon={AlertTriangle}
+          label="Critical Alerts"
+          value={stats.criticalAlerts}
+          sub={stats.criticalAlerts === 0 ? "System Stable" : `${stats.criticalAlerts} Active`}
+          color={stats.criticalAlerts > 0 ? "danger" : "primary"}
+        />
+      </div>
+
+      {/* Orbital Snapshot + Telemetry Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Orbital Snapshot Placeholder */}
+        <div className="lg:col-span-2 card">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="label-mono">Orbital Snapshot</h3>
+            <div className="flex gap-1">
+              <button className="px-2.5 py-1 text-xs font-mono rounded border border-orbital-border text-orbital-muted hover:text-orbital-text hover:border-orbital-primary transition-colors">2D</button>
+              <button className="px-2.5 py-1 text-xs font-mono rounded bg-orbital-primary/20 border border-orbital-primary text-orbital-primary">3D</button>
+            </div>
+          </div>
+          <div className="h-72 bg-orbital-bg rounded border border-orbital-border flex items-center justify-center relative overflow-hidden">
+            {/* Star field */}
+            {Array.from({ length: 30 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute rounded-full bg-white"
+                style={{
+                  width: `${Math.random() * 2 + 1}px`,
+                  height: `${Math.random() * 2 + 1}px`,
+                  top: `${Math.random() * 100}%`,
+                  left: `${Math.random() * 100}%`,
+                  opacity: Math.random() * 0.5 + 0.2,
+                }}
+              />
+            ))}
+            {/* Earth circle */}
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-900 via-blue-800 to-emerald-900 border border-blue-700/40 shadow-[0_0_40px_rgba(59,130,246,0.15)] relative">
+              <div className="absolute inset-2 rounded-full border border-blue-600/20" />
+            </div>
+            {/* Orbit ring */}
+            <div className="absolute w-56 h-56 rounded-full border border-orbital-primary/20 border-dashed" />
+            {/* Satellite dots */}
+            <div className="absolute top-16 left-[60%] flex flex-col items-center">
+              <div className="w-2 h-2 rounded-full bg-orbital-primary shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
+              <span className="text-[9px] font-mono text-orbital-primary mt-1">SAT-001</span>
+            </div>
+            <div className="absolute bottom-20 right-[30%] flex flex-col items-center">
+              <div className="w-2 h-2 rounded-full bg-orbital-success shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+              <span className="text-[9px] font-mono text-orbital-success mt-1">SAT-002</span>
+            </div>
+            <div className="absolute top-[45%] left-[25%] flex flex-col items-center">
+              <div className="w-2 h-2 rounded-full bg-orbital-danger shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+              <span className="text-[9px] font-mono text-orbital-danger mt-1">SAT-003</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Telemetry Feed */}
+        <TelemetryFeed />
+      </div>
+
+      {/* Health + Comms + Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <HealthDonut />
+        <CommBursts />
+
+        {/* Active Alerts */}
+        <div className="card">
+          <h3 className="label-mono mb-3">Active Alerts</h3>
+          <div className="space-y-2.5">
+            <AlertCard
+              severity="critical"
+              satellite="SAT-003"
+              message="Thruster response timeout during orbital correction. Manual override suggested."
+            />
+            <AlertCard
+              severity="warning"
+              satellite="SAT-005"
+              message="Telemetry packet loss exceeding 5% threshold on GS-GAMMA downlink."
+            />
+            <AlertCard
+              severity="warning"
+              satellite="SAT-005"
+              message="Battery levels dropped below 70%. Solar array charging rate nominal."
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
