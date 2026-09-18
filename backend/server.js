@@ -30,6 +30,8 @@ app.get("/api/health", (req, res) => {
 // --------------- API Routes ---------------
 app.use("/api/auth", require("./src/routes/auth"));
 app.use("/api/users", require("./src/routes/users"));
+app.use("/api/satellites", require("./src/routes/satellites"));
+app.use("/api/alerts", require("./src/routes/alerts"));
 
 // --------------- Error Handler ---------------
 app.use(errorHandler);

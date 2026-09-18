@@ -3,6 +3,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import SatelliteFleet from "./pages/SatelliteFleet";
 import DashboardLayout from "./components/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -36,7 +37,7 @@ function App() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/satellites" element={<PlaceholderPage title="Satellite Fleet" />} />
+          <Route path="/satellites" element={<SatelliteFleet />} />
           <Route path="/orbital-viewer" element={<PlaceholderPage title="Orbital Viewer" />} />
           <Route path="/telemetry" element={<PlaceholderPage title="Telemetry Analytics" />} />
           <Route path="/missions" element={<PlaceholderPage title="Mission Control" />} />
