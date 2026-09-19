@@ -72,7 +72,7 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="label-mono block mb-1.5">Email</label>
+              <label htmlFor="login-email" className="label-mono block mb-1.5">Email</label>
               <input
                 id="login-email"
                 type="email"
@@ -85,7 +85,7 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="label-mono block mb-1.5">Password</label>
+              <label htmlFor="login-password" className="label-mono block mb-1.5">Password</label>
               <div className="relative">
                 <input
                   id="login-password"
@@ -99,6 +99,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-orbital-muted hover:text-orbital-text transition-colors"
                 >
                   {showPassword ? (

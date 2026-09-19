@@ -12,9 +12,10 @@ const getSatellites = asyncHandler(async (req, res) => {
   if (req.query.status) filter.status = req.query.status;
   if (req.query.orbitType) filter.orbitType = req.query.orbitType;
   if (req.query.search) {
+    const search = req.query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     filter.$or = [
-      { name: { $regex: req.query.search, $options: "i" } },
-      { satelliteId: { $regex: req.query.search, $options: "i" } },
+      { name: { $regex: search, $options: "i" } },
+      { satelliteId: { $regex: search, $options: "i" } },
     ];
   }
 
@@ -41,13 +42,15 @@ const getSatelliteStats = asyncHandler(async (req, res) => {
     "currentTelemetry.connectivity": "connected",
   });
 
+  // Warning: health 50-79 AND not inactive, OR maintenance with health >= 50
   const warning = await Satellite.countDocuments({
     $or: [
-      { "currentTelemetry.health": { $lt: 80, $gte: 50 } },
-      { status: "maintenance" },
+      { "currentTelemetry.health": { $lt: 80, $gte: 50 }, status: { $ne: "inactive" } },
+      { status: "maintenance", "currentTelemetry.health": { $gte: 50 } },
     ],
   });
 
+  // Critical: health < 50 OR inactive (takes priority over warning)
   const critical = await Satellite.countDocuments({
     $or: [
       { "currentTelemetry.health": { $lt: 50 } },
