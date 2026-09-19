@@ -47,4 +47,23 @@ const resolveAlert = asyncHandler(async (req, res) => {
   res.json(new ApiResponse(200, "Alert resolved.", { alert }));
 });
 
-module.exports = { getAlerts, acknowledgeAlert, resolveAlert };
+// GET /api/alerts/stats — aggregate unresolved alert counts
+const getAlertStats = asyncHandler(async (req, res) => {
+  const [total, critical, warning, info] = await Promise.all([
+    Alert.countDocuments({ resolved: false }),
+    Alert.countDocuments({ resolved: false, severity: "critical" }),
+    Alert.countDocuments({ resolved: false, severity: "warning" }),
+    Alert.countDocuments({ resolved: false, severity: "info" }),
+  ]);
+
+  res.json(
+    new ApiResponse(200, "Alert stats retrieved.", {
+      total,
+      critical,
+      warning,
+      info,
+    })
+  );
+});
+
+module.exports = { getAlerts, getAlertStats, acknowledgeAlert, resolveAlert };

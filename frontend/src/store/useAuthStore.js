@@ -70,17 +70,22 @@ const useAuthStore = create((set) => ({
     set({ user: null, token: null, error: null });
   },
 
+  // Security note: In production environments, consider migrating token storage
+  // to Secure, HttpOnly, SameSite cookies to protect against XSS token exfiltration.
   fetchMe: async () => {
     try {
       const res = await api.get("/auth/me");
       const user = res.data.data.user;
       localStorage.setItem("user", JSON.stringify(user));
       set({ user });
-    } catch {
-      // Token invalid — clear auth
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-      set({ user: null, token: null });
+    } catch (err) {
+      // Only clear auth on 401/403 (unauthorized/forbidden)
+      // Preserve auth state during transient network issues or temporary server errors
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        set({ user: null, token: null });
+      }
     }
   },
 }));

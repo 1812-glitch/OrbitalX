@@ -19,6 +19,13 @@ const loginValidation = [
   body("password").notEmpty().withMessage("Password is required"),
 ];
 
+const changePasswordValidation = [
+  body("currentPassword").notEmpty().withMessage("Current password is required"),
+  body("newPassword")
+    .isLength({ min: 6 })
+    .withMessage("New password must be at least 6 characters"),
+];
+
 // Validation error handler
 const validate = (req, res, next) => {
   const { validationResult } = require("express-validator");
@@ -40,6 +47,6 @@ router.post("/login", loginValidation, validate, login);
 // Protected routes
 router.get("/me", requireAuth, getMe);
 router.put("/profile", requireAuth, updateProfile);
-router.put("/change-password", requireAuth, changePassword);
+router.put("/change-password", requireAuth, changePasswordValidation, validate, changePassword);
 
 module.exports = router;

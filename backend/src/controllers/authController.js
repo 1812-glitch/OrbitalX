@@ -28,16 +28,20 @@ const register = asyncHandler(async (req, res) => {
   // Generate token
   const token = generateToken(user._id);
 
-  // Audit log
-  await AuditLog.create({
-    userId: user._id,
-    userSource: user.email,
-    action: "USER_REGISTER",
-    resource: "User",
-    resourceId: user._id.toString(),
-    details: `New user registered: ${user.email}`,
-    severity: "info",
-  });
+  // Audit log (non-blocking: audit failure should not abort user registration)
+  try {
+    await AuditLog.create({
+      userId: user._id,
+      userSource: user.email,
+      action: "USER_REGISTER",
+      resource: "User",
+      resourceId: user._id.toString(),
+      details: `New user registered: ${user.email}`,
+      severity: "info",
+    });
+  } catch (auditErr) {
+    console.error("Failed to create audit log for registration:", auditErr.message);
+  }
 
   res.status(201).json(new ApiResponse(201, "Account created successfully.", {
     token,
@@ -72,17 +76,21 @@ const login = asyncHandler(async (req, res) => {
   // Generate token
   const token = generateToken(user._id);
 
-  // Audit log
-  await AuditLog.create({
-    userId: user._id,
-    userSource: user.email,
-    action: "USER_LOGIN",
-    resource: "User",
-    resourceId: user._id.toString(),
-    details: `User logged in: ${user.email}`,
-    severity: "info",
-    ipAddress: req.ip || "",
-  });
+  // Audit log (non-blocking)
+  try {
+    await AuditLog.create({
+      userId: user._id,
+      userSource: user.email,
+      action: "USER_LOGIN",
+      resource: "User",
+      resourceId: user._id.toString(),
+      details: `User logged in: ${user.email}`,
+      severity: "info",
+      ipAddress: req.ip || "",
+    });
+  } catch (auditErr) {
+    console.error("Failed to create audit log for login:", auditErr.message);
+  }
 
   res.json(new ApiResponse(200, "Login successful.", {
     token,

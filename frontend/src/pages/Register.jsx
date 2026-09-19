@@ -91,7 +91,7 @@ export default function Register() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="label-mono block mb-1.5">Full Name</label>
+              <label htmlFor="register-name" className="label-mono block mb-1.5">Full Name</label>
               <input
                 id="register-name"
                 type="text"
@@ -104,7 +104,7 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="label-mono block mb-1.5">Email</label>
+              <label htmlFor="register-email" className="label-mono block mb-1.5">Email</label>
               <input
                 id="register-email"
                 type="email"
@@ -117,7 +117,7 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="label-mono block mb-1.5">Password</label>
+              <label htmlFor="register-password" className="label-mono block mb-1.5">Password</label>
               <div className="relative">
                 <input
                   id="register-password"
@@ -131,6 +131,7 @@ export default function Register() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-orbital-muted hover:text-orbital-text transition-colors"
                 >
                   {showPassword ? (
@@ -143,7 +144,7 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="label-mono block mb-1.5">
+              <label htmlFor="register-confirm" className="label-mono block mb-1.5">
                 Confirm Password
               </label>
               <input

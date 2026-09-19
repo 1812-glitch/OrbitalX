@@ -74,13 +74,15 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Emergency Override */}
+      {/* Emergency Override - hidden until emergency override modal/handler is implemented */}
+      {/*
       <div className="px-3 mb-2">
         <button className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-orbital-danger/40 text-orbital-danger text-sm font-mono hover:bg-orbital-danger/10 transition-colors">
           <AlertTriangle className="w-4 h-4" />
           Emergency Override
         </button>
       </div>
+      */}
 
       {/* Bottom Links */}
       <div className="px-3 pb-2 space-y-1 border-t border-orbital-border pt-2">

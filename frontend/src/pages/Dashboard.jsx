@@ -13,6 +13,7 @@ import {
   Signal,
 } from "lucide-react";
 import api from "../lib/api";
+import useStore from "../store/useStore";
 
 const fadeIn = {
   initial: { opacity: 0, y: 10 },
@@ -43,7 +44,7 @@ function KPICard({ icon: Icon, label, value, sub, color = "primary" }) {
   );
 }
 
-function TelemetryFeed() {
+function TelemetryFeed({ socketConnected }) {
   const [logs, setLogs] = useState([
     { time: "09:40:12", tag: "SYS", text: "Nominal operation on GS-ALPHA link.", type: "info" },
     { time: "09:39:55", tag: "SAT-003", text: "Minor packet loss detected. Retrying...", type: "warn" },
@@ -67,7 +68,10 @@ function TelemetryFeed() {
     <div className="card h-full">
       <div className="flex items-center justify-between mb-3">
         <h3 className="label-mono">Real-Time Telemetry</h3>
-        <span className="status-dot-success" />
+        <span
+          className={socketConnected ? "status-dot-success" : "status-dot-muted"}
+          title={socketConnected ? "Telemetry stream live" : "Telemetry stream disconnected"}
+        />
       </div>
       <div className="space-y-2 max-h-64 overflow-y-auto font-mono text-xs">
         {logs.map((log, i) => (
@@ -107,17 +111,37 @@ function AlertCard({ severity, satellite, message }) {
   );
 }
 
-function HealthDonut() {
-  // SVG donut chart for satellite health
-  const healthy = 80;
-  const warning = 15;
-  const critical = 5;
+function HealthDonut({ stats }) {
+  if (!stats || !stats.total) {
+    return (
+      <div className="card">
+        <h3 className="label-mono mb-4">Satellite Health Distribution</h3>
+        <div className="flex flex-col items-center justify-center h-44 text-orbital-muted text-xs font-mono">
+          <div className="w-16 h-16 rounded-full border-2 border-dashed border-orbital-border flex items-center justify-center mb-2">
+            <span className="text-orbital-muted text-lg">—</span>
+          </div>
+          <span>{!stats ? "Data Unavailable" : "No Satellites in Fleet"}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const total = stats.total;
+  const warningCount = stats.warning || 0;
+  const criticalCount = stats.critical || 0;
+  const healthyCount = Math.max(0, total - warningCount - criticalCount);
+  const healthy = Math.round((healthyCount / total) * 100);
+  const warning = Math.round((warningCount / total) * 100);
+  const critical = Math.round((criticalCount / total) * 100);
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
 
   const healthyDash = (healthy / 100) * circumference;
   const warningDash = (warning / 100) * circumference;
   const criticalDash = (critical / 100) * circumference;
+
+  const centerColor = critical > 0 ? "text-orbital-danger" : warning > 0 ? "text-orbital-warning" : "text-orbital-success";
+  const centerLabel = critical > 0 ? "DEGRADED" : warning > 0 ? "CAUTION" : "NOMINAL";
 
   return (
     <div className="card">
@@ -128,40 +152,46 @@ function HealthDonut() {
             {/* Background circle */}
             <circle cx="60" cy="60" r={radius} fill="none" stroke="#1e293b" strokeWidth="12" />
             {/* Healthy */}
-            <circle
-              cx="60" cy="60" r={radius} fill="none"
-              stroke="#10b981" strokeWidth="12"
-              strokeDasharray={`${healthyDash} ${circumference}`}
-              strokeDashoffset="0"
-              strokeLinecap="round"
-            />
+            {healthy > 0 && (
+              <circle
+                cx="60" cy="60" r={radius} fill="none"
+                stroke="#10b981" strokeWidth="12"
+                strokeDasharray={`${healthyDash} ${circumference}`}
+                strokeDashoffset="0"
+                strokeLinecap="round"
+              />
+            )}
             {/* Warning */}
-            <circle
-              cx="60" cy="60" r={radius} fill="none"
-              stroke="#f59e0b" strokeWidth="12"
-              strokeDasharray={`${warningDash} ${circumference}`}
-              strokeDashoffset={`${-healthyDash}`}
-              strokeLinecap="round"
-            />
+            {warning > 0 && (
+              <circle
+                cx="60" cy="60" r={radius} fill="none"
+                stroke="#f59e0b" strokeWidth="12"
+                strokeDasharray={`${warningDash} ${circumference}`}
+                strokeDashoffset={`${-healthyDash}`}
+                strokeLinecap="round"
+              />
+            )}
             {/* Critical */}
-            <circle
-              cx="60" cy="60" r={radius} fill="none"
-              stroke="#ef4444" strokeWidth="12"
-              strokeDasharray={`${criticalDash} ${circumference}`}
-              strokeDashoffset={`${-(healthyDash + warningDash)}`}
-              strokeLinecap="round"
-            />
+            {critical > 0 && (
+              <circle
+                cx="60" cy="60" r={radius} fill="none"
+                stroke="#ef4444" strokeWidth="12"
+                strokeDasharray={`${criticalDash} ${circumference}`}
+                strokeDashoffset={`${-(healthyDash + warningDash)}`}
+                strokeLinecap="round"
+              />
+            )}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-xl font-bold font-mono text-orbital-success">100%</span>
-            <span className="text-[10px] text-orbital-muted font-mono">NOMINAL</span>
+            <span className={`text-xl font-bold font-mono ${centerColor}`}>{healthy}%</span>
+            <span className="text-[10px] text-orbital-muted font-mono">{centerLabel}</span>
           </div>
         </div>
       </div>
       <div className="flex justify-center gap-4 mt-3 text-xs">
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orbital-success" />Healthy</span>
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orbital-warning" />Warning</span>
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orbital-danger" />Critical</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orbital-success" />Healthy ({healthyCount})</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orbital-warning" />Warning ({warningCount})</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orbital-danger" />Critical ({criticalCount})</span>
       </div>
     </div>
   );
@@ -201,42 +231,68 @@ function CommBursts() {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({
-    activeSatellites: 5,
-    coverage: "94.2",
-    groundLinks: "4/4",
-    criticalAlerts: 0,
-  });
+  const socketConnected = useStore((state) => state.socketConnected);
+  const [stats, setStats] = useState(null);
+  const [criticalAlertsCount, setCriticalAlertsCount] = useState(null);
   const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadData = async () => {
       try {
-        const [satRes, alertRes] = await Promise.all([
-          api.get("/satellites").catch(() => null),
-          api.get("/alerts").catch(() => null),
+        setLoading(true);
+        setError(null);
+
+        // Fetch satellite fleet stats, unresolved critical alerts total, and recent alerts feed
+        const [statsRes, criticalAlertsRes, alertRes] = await Promise.all([
+          api.get("/satellites/stats"),
+          api.get("/alerts?resolved=false&severity=critical&limit=1"),
+          api.get("/alerts?resolved=false&limit=5"),
         ]);
 
-        if (satRes?.data?.data) {
-          const sats = satRes.data.data.data || satRes.data.data;
-          const active = Array.isArray(sats) ? sats.filter(s => s.status === "active").length : stats.activeSatellites;
-          setStats(prev => ({ ...prev, activeSatellites: active }));
-        }
+        if (!isMounted) return;
 
-        if (alertRes?.data?.data) {
-          const alertData = alertRes.data.data.data || alertRes.data.data;
-          if (Array.isArray(alertData)) {
-            setAlerts(alertData.slice(0, 3));
-            const critical = alertData.filter(a => a.severity === "critical" && !a.resolved).length;
-            setStats(prev => ({ ...prev, criticalAlerts: critical }));
-          }
+        setStats(statsRes.data.data);
+
+        // Extract total unresolved critical alerts from pagination metadata
+        const criticalTotal =
+          criticalAlertsRes.data?.data?.pagination?.total ??
+          criticalAlertsRes.data?.data?.total ??
+          0;
+        setCriticalAlertsCount(criticalTotal);
+
+        const alertData = alertRes.data.data.data || alertRes.data.data;
+        if (Array.isArray(alertData)) {
+          setAlerts(alertData.slice(0, 5));
         }
-      } catch {
-        // Use default stats
+      } catch (err) {
+        if (isMounted) {
+          setError("Failed to load operational data. Some values may be unavailable.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  const activeSatellites = stats?.active ?? "—";
+  const criticalAlerts = criticalAlertsCount !== null ? criticalAlertsCount : "—";
+  const total = stats?.total ?? "—";
+  const groundLinks = stats ? `${stats.connected}/${stats.total}` : "—/—";
+  const globalCoverage =
+    stats && stats.total > 0
+      ? `${((stats.active / stats.total) * 100).toFixed(1)}%`
+      : "—";
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -248,35 +304,54 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-orbital-warning/10 border border-orbital-warning/30 rounded-md px-4 py-3 text-sm text-orbital-warning">
+          ⚠ {error}
+        </div>
+      )}
+
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           icon={Satellite}
           label="Active Satellites"
-          value={stats.activeSatellites}
-          sub="↗ 100% Operational"
+          value={loading ? "…" : activeSatellites}
+          sub={stats ? `↗ ${total} total` : "Loading..."}
           color="primary"
         />
         <KPICard
           icon={Globe}
           label="Global Coverage"
-          value={`${stats.coverage}%`}
-          sub="Target: 95.0%"
+          value={loading ? "…" : globalCoverage}
+          sub={stats ? "Target: 95.0%" : "Loading..."}
           color="success"
         />
         <KPICard
           icon={Radio}
           label="Ground Station Links"
-          value={stats.groundLinks}
-          sub="● All Links Active"
-          color="success"
+          value={loading ? "…" : groundLinks}
+          sub={
+            stats
+              ? stats.connected === stats.total
+                ? "● All Links Active"
+                : `▲ ${stats.total - stats.connected} Link(s) Inactive`
+              : "Loading..."
+          }
+          color={stats && stats.connected === stats.total ? "success" : "warning"}
         />
         <KPICard
           icon={AlertTriangle}
           label="Critical Alerts"
-          value={stats.criticalAlerts}
-          sub={stats.criticalAlerts === 0 ? "System Stable" : `${stats.criticalAlerts} Active`}
-          color={stats.criticalAlerts > 0 ? "danger" : "primary"}
+          value={loading ? "…" : criticalAlerts}
+          sub={
+            criticalAlertsCount === null
+              ? "Loading..."
+              : criticalAlertsCount === 0
+              ? "System Stable"
+              : `${criticalAlertsCount} Active`
+          }
+          color={criticalAlertsCount && criticalAlertsCount > 0 ? "danger" : "primary"}
         />
       </div>
 
@@ -329,33 +404,32 @@ export default function Dashboard() {
         </div>
 
         {/* Telemetry Feed */}
-        <TelemetryFeed />
+        <TelemetryFeed socketConnected={socketConnected} />
       </div>
 
       {/* Health + Comms + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <HealthDonut />
+        <HealthDonut stats={stats} />
         <CommBursts />
 
-        {/* Active Alerts */}
+        {/* Active Alerts — rendered from API data */}
         <div className="card">
           <h3 className="label-mono mb-3">Active Alerts</h3>
           <div className="space-y-2.5">
-            <AlertCard
-              severity="critical"
-              satellite="SAT-003"
-              message="Thruster response timeout during orbital correction. Manual override suggested."
-            />
-            <AlertCard
-              severity="warning"
-              satellite="SAT-005"
-              message="Telemetry packet loss exceeding 5% threshold on GS-GAMMA downlink."
-            />
-            <AlertCard
-              severity="warning"
-              satellite="SAT-005"
-              message="Battery levels dropped below 70%. Solar array charging rate nominal."
-            />
+            {alerts.length === 0 ? (
+              <p className="text-xs text-orbital-muted text-center py-4">
+                {loading ? "Loading alerts..." : "No active alerts. System nominal."}
+              </p>
+            ) : (
+              alerts.map((alert) => (
+                <AlertCard
+                  key={alert._id}
+                  severity={alert.severity}
+                  satellite={alert.satelliteId?.name || alert.satelliteId || "Unknown"}
+                  message={alert.message}
+                />
+              ))
+            )}
           </div>
         </div>
       </div>

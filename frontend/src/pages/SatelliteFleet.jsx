@@ -7,13 +7,8 @@ import {
   AlertTriangle,
   WifiOff,
   Search,
-  Plus,
-  Thermometer,
-  Gauge,
-  Mountain,
-  Battery,
-  Signal,
   ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import api from "../lib/api";
 
@@ -84,14 +79,16 @@ export default function SatelliteFleet() {
   const [statusFilter, setStatusFilter] = useState("");
   const [orbitFilter, setOrbitFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, pages: 1 });
 
   useEffect(() => {
     loadData();
-  }, [search, statusFilter, orbitFilter]);
+  }, [search, statusFilter, orbitFilter, page]);
 
   const loadData = async () => {
     try {
-      const params = {};
+      const params = { page, limit: 20 };
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       if (orbitFilter) params.orbitType = orbitFilter;
@@ -102,6 +99,7 @@ export default function SatelliteFleet() {
       ]);
 
       setSatellites(satRes.data.data.data || []);
+      setPagination(satRes.data.data.pagination || { total: 0, pages: 1 });
       setStats(statsRes.data.data);
     } catch (err) {
       console.error("Failed to load satellites:", err);
@@ -110,8 +108,10 @@ export default function SatelliteFleet() {
     }
   };
 
-  const formatTime = () => {
-    return new Date().toISOString().slice(11, 19) + " UTC";
+  const formatLastUpdate = (sat) => {
+    const ts = sat.currentTelemetry?.lastUpdated || sat.updatedAt;
+    if (!ts) return "—";
+    return new Date(ts).toISOString().slice(11, 19) + " UTC";
   };
 
   return (
@@ -168,10 +168,7 @@ export default function SatelliteFleet() {
           <option value="HEO">HEO</option>
         </select>
 
-        <button className="btn-primary flex items-center gap-2 whitespace-nowrap">
-          <Plus className="w-4 h-4" />
-          Add Satellite
-        </button>
+        {/* Add Satellite button — hidden until creation flow is implemented */}
       </div>
 
       {/* Table */}
@@ -260,7 +257,7 @@ export default function SatelliteFleet() {
                         <HealthBadge health={health} />
                       </td>
                       <td className="px-4 py-3 text-xs font-mono text-orbital-muted">
-                        {formatTime()}
+                        {formatLastUpdate(sat)}
                       </td>
                       <td className="px-4 py-3">
                         <ChevronRight className="w-4 h-4 text-orbital-muted" />
@@ -273,6 +270,34 @@ export default function SatelliteFleet() {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {pagination.pages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-orbital-muted font-mono">
+            Showing {satellites.length} of {pagination.total} satellites
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 text-xs font-mono border border-orbital-border rounded hover:bg-orbital-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              ← Prev
+            </button>
+            <span className="text-xs font-mono text-orbital-muted">
+              Page {page} of {pagination.pages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+              disabled={page === pagination.pages}
+              className="px-3 py-1.5 text-xs font-mono border border-orbital-border rounded hover:bg-orbital-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
