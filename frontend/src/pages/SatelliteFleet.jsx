@@ -139,16 +139,24 @@ export default function SatelliteFleet() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search satellite ID or name..."
             className="input pl-9"
+            aria-label="Search satellites"
           />
         </div>
 
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
           className="input w-auto min-w-[130px]"
+          aria-label="Filter by status"
         >
           <option value="">Status: All</option>
           <option value="active">Active</option>
@@ -158,8 +166,12 @@ export default function SatelliteFleet() {
 
         <select
           value={orbitFilter}
-          onChange={(e) => setOrbitFilter(e.target.value)}
+          onChange={(e) => {
+            setOrbitFilter(e.target.value);
+            setPage(1);
+          }}
           className="input w-auto min-w-[120px]"
+          aria-label="Filter by orbit type"
         >
           <option value="">Orbit: All</option>
           <option value="LEO">LEO</option>

@@ -130,18 +130,31 @@ function HealthDonut({ stats }) {
   const warningCount = stats.warning || 0;
   const criticalCount = stats.critical || 0;
   const healthyCount = Math.max(0, total - warningCount - criticalCount);
-  const healthy = Math.round((healthyCount / total) * 100);
-  const warning = Math.round((warningCount / total) * 100);
-  const critical = Math.round((criticalCount / total) * 100);
+
+  // Exact ratios without premature rounding
+  const healthyRatio = healthyCount / total;
+  const warningRatio = warningCount / total;
+  const criticalRatio = criticalCount / total;
+
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
 
-  const healthyDash = (healthy / 100) * circumference;
-  const warningDash = (warning / 100) * circumference;
-  const criticalDash = (critical / 100) * circumference;
+  const healthyDash = healthyRatio * circumference;
+  const warningDash = warningRatio * circumference;
+  const criticalDash = criticalRatio * circumference;
 
-  const centerColor = critical > 0 ? "text-orbital-danger" : warning > 0 ? "text-orbital-warning" : "text-orbital-success";
-  const centerLabel = critical > 0 ? "DEGRADED" : warning > 0 ? "CAUTION" : "NOMINAL";
+  // Use actual counts for health-state decisions to prevent small ratios from disappearing
+  const centerColor =
+    criticalCount > 0
+      ? "text-orbital-danger"
+      : warningCount > 0
+      ? "text-orbital-warning"
+      : "text-orbital-success";
+  const centerLabel =
+    criticalCount > 0 ? "DEGRADED" : warningCount > 0 ? "CAUTION" : "NOMINAL";
+
+  // Round percentages only for display text
+  const healthyPercent = Math.round(healthyRatio * 100);
 
   return (
     <div className="card">
@@ -152,7 +165,7 @@ function HealthDonut({ stats }) {
             {/* Background circle */}
             <circle cx="60" cy="60" r={radius} fill="none" stroke="#1e293b" strokeWidth="12" />
             {/* Healthy */}
-            {healthy > 0 && (
+            {healthyCount > 0 && (
               <circle
                 cx="60" cy="60" r={radius} fill="none"
                 stroke="#10b981" strokeWidth="12"
@@ -162,7 +175,7 @@ function HealthDonut({ stats }) {
               />
             )}
             {/* Warning */}
-            {warning > 0 && (
+            {warningCount > 0 && (
               <circle
                 cx="60" cy="60" r={radius} fill="none"
                 stroke="#f59e0b" strokeWidth="12"
@@ -172,7 +185,7 @@ function HealthDonut({ stats }) {
               />
             )}
             {/* Critical */}
-            {critical > 0 && (
+            {criticalCount > 0 && (
               <circle
                 cx="60" cy="60" r={radius} fill="none"
                 stroke="#ef4444" strokeWidth="12"
@@ -183,7 +196,7 @@ function HealthDonut({ stats }) {
             )}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-xl font-bold font-mono ${centerColor}`}>{healthy}%</span>
+            <span className={`text-xl font-bold font-mono ${centerColor}`}>{healthyPercent}%</span>
             <span className="text-[10px] text-orbital-muted font-mono">{centerLabel}</span>
           </div>
         </div>
@@ -234,7 +247,8 @@ export default function Dashboard() {
   const socketConnected = useStore((state) => state.socketConnected);
   const [stats, setStats] = useState(null);
   const [criticalAlertsCount, setCriticalAlertsCount] = useState(null);
-  const [alerts, setAlerts] = useState([]);
+  const [alerts, setAlerts] = useState(null);
+  const [alertsError, setAlertsError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -245,9 +259,10 @@ export default function Dashboard() {
       try {
         setLoading(true);
         setError(null);
+        setAlertsError(null);
 
-        // Fetch satellite fleet stats, unresolved critical alerts total, and recent alerts feed
-        const [statsRes, criticalAlertsRes, alertRes] = await Promise.all([
+        // Fetch each section independently using Promise.allSettled so a failure in one does not discard the others
+        const [statsResult, criticalAlertsResult, alertResult] = await Promise.allSettled([
           api.get("/satellites/stats"),
           api.get("/alerts?resolved=false&severity=critical&limit=1"),
           api.get("/alerts?resolved=false&limit=5"),
@@ -255,18 +270,41 @@ export default function Dashboard() {
 
         if (!isMounted) return;
 
-        setStats(statsRes.data.data);
+        const errorMessages = [];
 
-        // Extract total unresolved critical alerts from pagination metadata
-        const criticalTotal =
-          criticalAlertsRes.data?.data?.pagination?.total ??
-          criticalAlertsRes.data?.data?.total ??
-          0;
-        setCriticalAlertsCount(criticalTotal);
+        // 1. Process satellite fleet stats
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value.data.data);
+        } else {
+          setStats(null);
+          errorMessages.push("Fleet statistics unavailable");
+        }
 
-        const alertData = alertRes.data.data.data || alertRes.data.data;
-        if (Array.isArray(alertData)) {
-          setAlerts(alertData.slice(0, 5));
+        // 2. Process unresolved critical alerts count
+        if (criticalAlertsResult.status === "fulfilled") {
+          const criticalTotal =
+            criticalAlertsResult.value.data?.data?.pagination?.total ??
+            criticalAlertsResult.value.data?.data?.total ??
+            0;
+          setCriticalAlertsCount(criticalTotal);
+        } else {
+          setCriticalAlertsCount(null);
+          errorMessages.push("Critical alert metric unavailable");
+        }
+
+        // 3. Process active alerts feed
+        if (alertResult.status === "fulfilled") {
+          const alertData = alertResult.value.data.data.data || alertResult.value.data.data;
+          setAlerts(Array.isArray(alertData) ? alertData.slice(0, 5) : []);
+          setAlertsError(null);
+        } else {
+          setAlerts(null);
+          setAlertsError("Failed to load active alerts.");
+          errorMessages.push("Alerts feed unavailable");
+        }
+
+        if (errorMessages.length > 0) {
+          setError(`Data partially unavailable: ${errorMessages.join(" • ")}.`);
         }
       } catch (err) {
         if (isMounted) {
@@ -416,11 +454,15 @@ export default function Dashboard() {
         <div className="card">
           <h3 className="label-mono mb-3">Active Alerts</h3>
           <div className="space-y-2.5">
-            {alerts.length === 0 ? (
-              <p className="text-xs text-orbital-muted text-center py-4">
-                {loading ? "Loading alerts..." : "No active alerts. System nominal."}
+            {alertsError ? (
+              <p className="text-xs text-orbital-danger text-center py-4">
+                ⚠ {alertsError}
               </p>
-            ) : (
+            ) : loading && alerts === null ? (
+              <p className="text-xs text-orbital-muted text-center py-4">
+                Loading alerts...
+              </p>
+            ) : alerts && alerts.length > 0 ? (
               alerts.map((alert) => (
                 <AlertCard
                   key={alert._id}
@@ -429,6 +471,10 @@ export default function Dashboard() {
                   message={alert.message}
                 />
               ))
+            ) : (
+              <p className="text-xs text-orbital-muted text-center py-4">
+                No active alerts. System nominal.
+              </p>
             )}
           </div>
         </div>

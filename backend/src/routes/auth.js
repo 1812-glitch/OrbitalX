@@ -20,8 +20,13 @@ const loginValidation = [
 ];
 
 const changePasswordValidation = [
-  body("currentPassword").notEmpty().withMessage("Current password is required"),
+  body("currentPassword")
+    .notEmpty().withMessage("Current password is required")
+    .bail()
+    .isString().withMessage("Current password must be a string"),
   body("newPassword")
+    .isString().withMessage("New password must be a string")
+    .bail()
     .isLength({ min: 6 })
     .withMessage("New password must be at least 6 characters"),
 ];
